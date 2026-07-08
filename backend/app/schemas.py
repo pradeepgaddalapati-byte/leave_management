@@ -22,6 +22,12 @@ class EmployeeCreate(BaseModel):
     total_leaves: int = Field(default=20, ge=0)
 
 
+class EmployeeUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+    password: str | None = Field(default=None, min_length=6)
+
+
 class EmployeeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -28,8 +28,8 @@ app.include_router(leaves.router)
 
 
 def create_default_admin(db: Session) -> None:
-    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
-    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123")
+    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "pradeep@gmail.com")
+    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "pradeep123")
 
     existing_admin = db.query(User).filter(User.email == admin_email).first()
     if existing_admin:

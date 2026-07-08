@@ -9,6 +9,7 @@ from app.schemas import (
     AdminLeaveResponse,
     EmployeeCreate,
     EmployeeResponse,
+    EmployeeUpdate,
     LeaveStatusUpdate,
 )
 
@@ -80,6 +81,67 @@ def get_employees(
         .order_by(User.created_at.desc())
         .all()
     )
+
+
+@router.put("/employees/{employee_id}", response_model=EmployeeResponse)
+def update_employee(
+    employee_id: int,
+    request: EmployeeUpdate,
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    employee = (
+        db.query(User)
+        .filter(User.id == employee_id, User.role == UserRole.EMPLOYEE)
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    existing_user = (
+        db.query(User)
+        .filter(User.email == request.email, User.id != employee_id)
+        .first()
+    )
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An employee with this email already exists",
+        )
+
+    employee.name = request.name
+    employee.email = request.email
+    if request.password:
+        employee.password_hash = hash_password(request.password)
+
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@router.delete("/employees/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee(
+    employee_id: int,
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    employee = (
+        db.query(User)
+        .filter(User.id == employee_id, User.role == UserRole.EMPLOYEE)
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    db.delete(employee)
+    db.commit()
+    return None
 
 
 @router.get("/leaves", response_model=list[AdminLeaveResponse])

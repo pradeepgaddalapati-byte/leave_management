@@ -1,38 +1,43 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api, { getApiErrorMessage } from '../services/api';
+import React from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import api, { getErrorMessage } from "../services/api.js";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function updateField(event) {
-    setForm({ ...form, [event.target.name]: event.target.value });
+    setForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError('');
-    setLoading(true);
+    setError("");
+    setIsSubmitting(true);
 
     try {
-      const response = await api.post('/auth/login', form);
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('role', response.data.role);
-      navigate(response.data.role === 'ADMIN' ? '/admin' : '/employee');
+      const { data } = await api.post("/auth/login", form);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("role", data.role);
+      navigate(data.role === "ADMIN" ? "/admin" : "/employee", { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Login failed'));
+      setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
   return (
     <main className="login-page">
       <section className="login-panel">
-        <h1>Employee Leave Management</h1>
+        <h1>Leave Management</h1>
         <form onSubmit={handleSubmit}>
           <label>
             Email
@@ -55,7 +60,9 @@ export default function Login() {
             />
           </label>
           {error && <p className="error-text">{error}</p>}
-          <button disabled={loading}>{loading ? 'Logging in...' : 'Login'}</button>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Logging in..." : "Login"}
+          </button>
         </form>
       </section>
     </main>

@@ -1,21 +1,21 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Navbar({ title }) {
   const navigate = useNavigate();
 
-  function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    navigate('/');
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    navigate("/login", { replace: true });
   }
 
   return (
-    <nav className="navbar">
+    <header className="navbar">
       <h1>{title}</h1>
-      <button className="secondary-button" onClick={handleLogout}>
+      <button type="button" className="secondary-button" onClick={logout}>
         Logout
       </button>
-    </nav>
+    </header>
   );
 }

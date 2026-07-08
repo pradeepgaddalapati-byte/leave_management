@@ -1,72 +1,71 @@
-import React, { useEffect, useState } from 'react';
-import LeaveCard from '../components/LeaveCard';
-import Navbar from '../components/Navbar';
-import api, { getApiErrorMessage } from '../services/api';
+import React from "react";
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 
-const emptyLeaveForm = {
-  leave_type: 'Casual Leave',
-  start_date: '',
-  end_date: '',
-  reason: '',
+import LeaveCard from "../components/LeaveCard.jsx";
+import Navbar from "../components/Navbar.jsx";
+import api, { getErrorMessage } from "../services/api.js";
+
+const emptyLeave = {
+  leave_type: "Casual Leave",
+  start_date: "",
+  end_date: "",
+  reason: "",
 };
-const paidLeaveTypes = ['Casual Leave', 'Sick Leave'];
-const lossOfPayLeaveType = 'Loss of Pay';
 
 export default function EmployeeDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [leaves, setLeaves] = useState([]);
-  const [leaveForm, setLeaveForm] = useState(emptyLeaveForm);
-  const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [leaveForm, setLeaveForm] = useState(emptyLeave);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  async function loadEmployeeData() {
-    const [dashboardResponse, leavesResponse] = await Promise.all([
-      api.get('/employee/dashboard'),
-      api.get('/employee/leaves'),
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  async function loadData() {
+    const [dashboardResponse, leaveResponse] = await Promise.all([
+      api.get("/employee/dashboard"),
+      api.get("/employee/leaves"),
     ]);
 
     setDashboard(dashboardResponse.data);
-    setLeaves(Array.isArray(leavesResponse.data) ? leavesResponse.data : []);
+    setLeaves(leaveResponse.data);
   }
 
   useEffect(() => {
-    loadEmployeeData().catch(() => setMessage('Unable to load employee data'));
+    loadData().catch((err) => setError(getErrorMessage(err)));
   }, []);
 
-  const balance = dashboard?.balance;
-  const hasNoRemainingLeaves =
-    balance?.remaining_leaves !== undefined && balance.remaining_leaves <= 0;
-  const leaveTypeOptions = hasNoRemainingLeaves
-    ? [lossOfPayLeaveType]
-    : [...paidLeaveTypes, lossOfPayLeaveType];
+  if (!token || role !== "EMPLOYEE") {
+    return <Navigate to="/login" replace />;
+  }
 
-  useEffect(() => {
-    if (hasNoRemainingLeaves && leaveForm.leave_type !== lossOfPayLeaveType) {
-      setLeaveForm((currentForm) => ({
-        ...currentForm,
-        leave_type: lossOfPayLeaveType,
-      }));
-    }
-  }, [hasNoRemainingLeaves, leaveForm.leave_type]);
+  const remainingLeaves = dashboard?.balance?.remaining_leaves ?? 0;
+  const leaveTypes =
+    remainingLeaves > 0
+      ? ["Casual Leave", "Sick Leave", "Loss of Pay"]
+      : ["Loss of Pay"];
 
-  function updateLeaveForm(event) {
-    setLeaveForm({ ...leaveForm, [event.target.name]: event.target.value });
+  function updateField(event) {
+    setLeaveForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
   }
 
   async function applyLeave(event) {
     event.preventDefault();
-    setMessage('');
-    setSubmitting(true);
+    setError("");
+    setMessage("");
 
     try {
-      await api.post('/employee/leaves', leaveForm);
-      setLeaveForm(emptyLeaveForm);
-      await loadEmployeeData();
-      setMessage('Leave request submitted');
+      await api.post("/employee/leaves", leaveForm);
+      setLeaveForm({ ...emptyLeave, leave_type: leaveTypes[0] });
+      setMessage("Leave request submitted");
+      await loadData();
     } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Unable to apply for leave'));
-    } finally {
-      setSubmitting(false);
+      setError(getErrorMessage(err));
     }
   }
 
@@ -74,36 +73,34 @@ export default function EmployeeDashboard() {
     <>
       <Navbar title="Employee Dashboard" />
       <main className="page-shell">
+        {error && <p className="notice">{error}</p>}
+        {message && <p className="success-text">{message}</p>}
+
         <section className="stats-grid">
-          <div className="stat-box">
-            <span>Total Leaves</span>
-            <strong>{balance?.total_leaves ?? 0}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Used Leaves</span>
-            <strong>{balance?.used_leaves ?? 0}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Remaining Leaves</span>
-            <strong>{balance?.remaining_leaves ?? 0}</strong>
-          </div>
+          <Stat label="Total Leaves" value={dashboard?.balance?.total_leaves ?? 0} />
+          <Stat label="Used Leaves" value={dashboard?.balance?.used_leaves ?? 0} />
+          <Stat label="Remaining Leaves" value={remainingLeaves} />
         </section>
 
-        {message && <p className="notice">{message}</p>}
-
         <section className="two-column-layout">
-          <div>
-            <h2>Apply for Leave</h2>
-            <form className="card form-card" onSubmit={applyLeave}>
+          <div className="card">
+            <h2>Apply Leave</h2>
+            {remainingLeaves <= 0 && (
+              <p className="notice">Paid leaves are completed. Use Loss of Pay.</p>
+            )}
+            <form className="form-card" onSubmit={applyLeave}>
               <label>
                 Leave Type
                 <select
                   name="leave_type"
                   value={leaveForm.leave_type}
-                  onChange={updateLeaveForm}
+                  onChange={updateField}
+                  required
                 >
-                  {leaveTypeOptions.map((leaveType) => (
-                    <option key={leaveType}>{leaveType}</option>
+                  {leaveTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -113,7 +110,7 @@ export default function EmployeeDashboard() {
                   name="start_date"
                   type="date"
                   value={leaveForm.start_date}
-                  onChange={updateLeaveForm}
+                  onChange={updateField}
                   required
                 />
               </label>
@@ -123,38 +120,45 @@ export default function EmployeeDashboard() {
                   name="end_date"
                   type="date"
                   value={leaveForm.end_date}
-                  onChange={updateLeaveForm}
+                  onChange={updateField}
                   required
                 />
               </label>
               <label>
-                Description
+                Reason
                 <textarea
                   name="reason"
-                  value={leaveForm.reason}
-                  onChange={updateLeaveForm}
+                  minLength="5"
                   rows="4"
+                  value={leaveForm.reason}
+                  onChange={updateField}
                   required
                 />
               </label>
-              <button disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Leave Request'}
-              </button>
+              <button type="submit">Submit</button>
             </form>
           </div>
 
-          <div>
+          <section>
             <h2>My Leave History</h2>
             <div className="list-stack">
-              {leaves.length > 0 ? (
-                leaves.map((leave) => <LeaveCard key={leave.id} leave={leave} />)
-              ) : (
-                <p className="empty-text">No leave requests yet.</p>
-              )}
+              {leaves.map((leave) => (
+                <LeaveCard key={leave.id} leave={leave} />
+              ))}
+              {leaves.length === 0 && <p className="empty-text">No leave requests yet.</p>}
             </div>
-          </div>
+          </section>
         </section>
       </main>
     </>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <article className="stat-box">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
   );
 }

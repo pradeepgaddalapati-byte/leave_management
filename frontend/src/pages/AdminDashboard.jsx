@@ -1,69 +1,162 @@
-import React, { useEffect, useState } from 'react';
-import LeaveCard from '../components/LeaveCard';
-import Navbar from '../components/Navbar';
-import api, { getApiErrorMessage } from '../services/api';
+import React from "react";
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 
-const emptyEmployeeForm = {
-  name: '',
-  email: '',
-  password: '',
+import LeaveCard from "../components/LeaveCard.jsx";
+import Navbar from "../components/Navbar.jsx";
+import api, { getErrorMessage } from "../services/api.js";
+
+const emptyEmployee = {
+  name: "",
+  email: "",
+  password: "",
   total_leaves: 20,
+};
+
+const emptyEmployeeEdit = {
+  name: "",
+  email: "",
+  password: "",
 };
 
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [leaves, setLeaves] = useState([]);
-  const [employeeForm, setEmployeeForm] = useState(emptyEmployeeForm);
-  const [message, setMessage] = useState('');
+  const [employeeForm, setEmployeeForm] = useState(emptyEmployee);
+  const [editingEmployeeId, setEditingEmployeeId] = useState(null);
+  const [employeeEditForm, setEmployeeEditForm] = useState(emptyEmployeeEdit);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  async function loadAdminData() {
-    const [dashboardResponse, employeesResponse, leavesResponse] =
-      await Promise.all([
-        api.get('/admin/dashboard'),
-        api.get('/admin/employees'),
-        api.get('/admin/leaves'),
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  async function loadData() {
+    const [dashboardResponse, employeeResponse, leaveResponse] = await Promise.all([
+      api.get("/admin/dashboard"),
+      api.get("/admin/employees"),
+      api.get("/admin/leaves"),
     ]);
 
     setDashboard(dashboardResponse.data);
-    setEmployees(Array.isArray(employeesResponse.data) ? employeesResponse.data : []);
-    setLeaves(Array.isArray(leavesResponse.data) ? leavesResponse.data : []);
+    setEmployees(employeeResponse.data);
+    setLeaves(leaveResponse.data);
   }
 
   useEffect(() => {
-    loadAdminData().catch(() => setMessage('Unable to load admin data'));
+    loadData().catch((err) => setError(getErrorMessage(err)));
   }, []);
 
-  function updateEmployeeForm(event) {
+  if (!token || role !== "ADMIN") {
+    return <Navigate to="/login" replace />;
+  }
+
+  function updateField(event) {
     const { name, value } = event.target;
-    setEmployeeForm({
-      ...employeeForm,
-      [name]: name === 'total_leaves' ? Number(value) : value,
+    setEmployeeForm((current) => ({
+      ...current,
+      [name]: name === "total_leaves" ? Number(value) : value,
+    }));
+  }
+
+  function updateEditField(event) {
+    const { name, value } = event.target;
+    setEmployeeEditForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function startEditEmployee(employee) {
+    setError("");
+    setMessage("");
+    setEditingEmployeeId(employee.id);
+    setEmployeeEditForm({
+      name: employee.name,
+      email: employee.email,
+      password: "",
     });
+  }
+
+  function cancelEditEmployee() {
+    setEditingEmployeeId(null);
+    setEmployeeEditForm(emptyEmployeeEdit);
   }
 
   async function createEmployee(event) {
     event.preventDefault();
-    setMessage('');
+    setError("");
+    setMessage("");
 
     try {
-      await api.post('/admin/employees', employeeForm);
-      setEmployeeForm(emptyEmployeeForm);
-      setMessage('Employee created successfully');
-      await loadAdminData();
+      await api.post("/admin/employees", employeeForm);
+      setEmployeeForm(emptyEmployee);
+      setMessage("Employee created successfully");
+      await loadData();
     } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Unable to create employee'));
+      setError(getErrorMessage(err));
     }
   }
 
-  async function updateLeaveStatus(leaveId, status) {
-    setMessage('');
+  async function saveEmployee(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    const payload = {
+      name: employeeEditForm.name,
+      email: employeeEditForm.email,
+    };
+
+    if (employeeEditForm.password) {
+      payload.password = employeeEditForm.password;
+    }
+
+    try {
+      await api.put(`/admin/employees/${editingEmployeeId}`, payload);
+      setMessage("Employee updated successfully");
+      cancelEditEmployee();
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function deleteEmployee(employee) {
+    const shouldDelete = window.confirm(
+      `Delete ${employee.name}? This will remove their leave requests too.`
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      await api.delete(`/admin/employees/${employee.id}`);
+      setMessage("Employee deleted successfully");
+      if (editingEmployeeId === employee.id) {
+        cancelEditEmployee();
+      }
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function updateLeave(leaveId, status) {
+    setError("");
+    setMessage("");
 
     try {
       await api.put(`/admin/leaves/${leaveId}`, { status });
-      await loadAdminData();
+      setMessage(`Leave ${status.toLowerCase()}`);
+      await loadData();
     } catch (err) {
-      setMessage(getApiErrorMessage(err, 'Unable to update leave'));
+      setError(getErrorMessage(err));
     }
   }
 
@@ -71,35 +164,22 @@ export default function AdminDashboard() {
     <>
       <Navbar title="Admin Dashboard" />
       <main className="page-shell">
+        {error && <p className="notice">{error}</p>}
+        {message && <p className="success-text">{message}</p>}
+
         <section className="stats-grid">
-          <div className="stat-box">
-            <span>Total Employees</span>
-            <strong>{dashboard?.total_employees ?? 0}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Pending Leaves</span>
-            <strong>{dashboard?.pending_leaves ?? 0}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Approved Leaves</span>
-            <strong>{dashboard?.approved_leaves ?? 0}</strong>
-          </div>
+          <Stat label="Employees" value={dashboard?.total_employees ?? 0} />
+          <Stat label="Pending Leaves" value={dashboard?.pending_leaves ?? 0} />
+          <Stat label="Approved Leaves" value={dashboard?.approved_leaves ?? 0} />
         </section>
 
-        {message && <p className="notice">{message}</p>}
-
         <section className="two-column-layout">
-          <div>
+          <div className="card">
             <h2>Create Employee</h2>
-            <form className="card form-card" onSubmit={createEmployee}>
+            <form className="form-card" onSubmit={createEmployee}>
               <label>
                 Name
-                <input
-                  name="name"
-                  value={employeeForm.name}
-                  onChange={updateEmployeeForm}
-                  required
-                />
+                <input name="name" value={employeeForm.name} onChange={updateField} required />
               </label>
               <label>
                 Email
@@ -107,7 +187,7 @@ export default function AdminDashboard() {
                   name="email"
                   type="email"
                   value={employeeForm.email}
-                  onChange={updateEmployeeForm}
+                  onChange={updateField}
                   required
                 />
               </label>
@@ -116,10 +196,10 @@ export default function AdminDashboard() {
                 <input
                   name="password"
                   type="password"
-                  value={employeeForm.password}
-                  onChange={updateEmployeeForm}
-                  required
                   minLength="6"
+                  value={employeeForm.password}
+                  onChange={updateField}
+                  required
                 />
               </label>
               <label>
@@ -129,24 +209,91 @@ export default function AdminDashboard() {
                   type="number"
                   min="0"
                   value={employeeForm.total_leaves}
-                  onChange={updateEmployeeForm}
+                  onChange={updateField}
+                  required
                 />
               </label>
-              <button>Create Employee</button>
+              <button type="submit">Create</button>
             </form>
 
-            <h2>Employees</h2>
+            <h2 className="section-title">Employees</h2>
             <div className="list-stack">
               {employees.map((employee) => (
-                <div className="card compact-card" key={employee.id}>
-                  <strong>{employee.name}</strong>
-                  <span>{employee.email}</span>
-                </div>
+                <article className="compact-card" key={employee.id}>
+                  {editingEmployeeId === employee.id ? (
+                    <form className="employee-edit-form" onSubmit={saveEmployee}>
+                      <label>
+                        Name
+                        <input
+                          name="name"
+                          value={employeeEditForm.name}
+                          onChange={updateEditField}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Email
+                        <input
+                          name="email"
+                          type="email"
+                          value={employeeEditForm.email}
+                          onChange={updateEditField}
+                          required
+                        />
+                      </label>
+                      <label>
+                        New Password
+                        <input
+                          name="password"
+                          type="password"
+                          minLength="6"
+                          value={employeeEditForm.password}
+                          onChange={updateEditField}
+                          placeholder="Leave blank to keep current"
+                        />
+                      </label>
+                      <div className="button-row">
+                        <button type="submit">Save</button>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={cancelEditEmployee}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div>
+                        <strong>{employee.name}</strong>
+                        <span>{employee.email}</span>
+                      </div>
+                      <div className="button-row employee-actions">
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() => startEditEmployee(employee)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="danger-button"
+                          type="button"
+                          onClick={() => deleteEmployee(employee)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </article>
               ))}
+              {employees.length === 0 && <p className="empty-text">No employees yet.</p>}
             </div>
           </div>
 
-          <div>
+          <section>
             <h2>Leave Requests</h2>
             <div className="list-stack">
               {leaves.map((leave) => (
@@ -154,14 +301,23 @@ export default function AdminDashboard() {
                   key={leave.id}
                   leave={leave}
                   showEmployee
-                  onApprove={(leaveId) => updateLeaveStatus(leaveId, 'APPROVED')}
-                  onReject={(leaveId) => updateLeaveStatus(leaveId, 'REJECTED')}
+                  onUpdate={updateLeave}
                 />
               ))}
+              {leaves.length === 0 && <p className="empty-text">No leave requests yet.</p>}
             </div>
-          </div>
+          </section>
         </section>
       </main>
     </>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <article className="stat-box">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
   );
 }

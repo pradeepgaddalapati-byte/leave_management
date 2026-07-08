@@ -4,9 +4,9 @@
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
   background: #f4f7f6;
   color: #1f2933;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 button,
@@ -23,8 +23,8 @@ button {
   background: #2563eb;
   color: #ffffff;
   cursor: pointer;
-  padding: 0 16px;
   font-weight: 700;
+  padding: 0 16px;
 }
 
 button:disabled {
@@ -38,8 +38,8 @@ textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 10px 12px;
   background: #ffffff;
+  padding: 10px 12px;
 }
 
 label {
@@ -65,11 +65,11 @@ p {
 
 .login-panel {
   width: min(100%, 420px);
-  background: #ffffff;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgb(31 41 51 / 8%);
   padding: 28px;
-  box-shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
 }
 
 .login-panel form,
@@ -84,9 +84,9 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 32px;
-  background: #ffffff;
   border-bottom: 1px solid #dbe3ea;
+  background: #ffffff;
+  padding: 0 32px;
 }
 
 .navbar h1 {
@@ -109,9 +109,9 @@ p {
 
 .stat-box,
 .card {
-  background: #ffffff;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
+  background: #ffffff;
 }
 
 .stat-box {
@@ -120,7 +120,8 @@ p {
   padding: 18px;
 }
 
-.stat-box span {
+.stat-box span,
+.compact-card span {
   color: #64748b;
 }
 
@@ -131,8 +132,8 @@ p {
 .two-column-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1.2fr);
-  gap: 24px;
   align-items: start;
+  gap: 24px;
 }
 
 .card {
@@ -142,10 +143,18 @@ p {
 .compact-card {
   display: grid;
   gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 14px;
+}
+
+.compact-card:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .compact-card span {
-  color: #64748b;
+  display: block;
+  margin-top: 4px;
 }
 
 .list-stack {
@@ -175,11 +184,15 @@ p {
   margin-bottom: 4px;
 }
 
+.section-title {
+  margin-top: 24px;
+}
+
 .status {
   border-radius: 999px;
-  padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
+  padding: 6px 10px;
 }
 
 .status-pending {
@@ -206,29 +219,38 @@ p {
   background: #dc2626;
 }
 
+.employee-actions {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.employee-actions button {
+  min-height: 34px;
+}
+
+.employee-edit-form {
+  display: grid;
+  gap: 12px;
+}
+
 .notice,
 .error-text {
   color: #b91c1c;
   font-weight: 700;
 }
 
-.notice {
+.notice,
+.success-text {
   margin-bottom: 18px;
+}
+
+.success-text {
+  color: #047857;
+  font-weight: 700;
 }
 
 .empty-text {
   color: #64748b;
-}
-
-.error-panel {
-  display: grid;
-  gap: 12px;
-  max-width: 520px;
-}
-
-.error-panel p {
-  color: #b91c1c;
-  font-weight: 700;
 }
 
 @media (max-width: 760px) {

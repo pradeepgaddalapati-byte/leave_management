@@ -1,30 +1,43 @@
-import React from 'react';
+import React from "react";
 
-export default function LeaveCard({ leave, showEmployee, onApprove, onReject }) {
-  const status = String(leave?.status || 'PENDING');
-  const statusClass = `status status-${status.toLowerCase()}`;
+const statusClassNames = {
+  PENDING: "status-pending",
+  APPROVED: "status-approved",
+  REJECTED: "status-rejected",
+};
 
+export default function LeaveCard({ leave, showEmployee = false, onUpdate }) {
   return (
     <article className="card leave-card">
       <div className="card-header">
         <div>
-          <h3>{leave?.leave_type || 'Leave Request'}</h3>
+          <h3>{leave.leave_type}</h3>
           {showEmployee && (
-            <p>
-              {leave?.employee_name || 'Employee'} ({leave?.employee_email || 'No email'})
-            </p>
+            <span>
+              {leave.employee_name} ({leave.employee_email})
+            </span>
           )}
         </div>
-        <span className={statusClass}>{status}</span>
+        <span className={`status ${statusClassNames[leave.status] || ""}`}>
+          {leave.status}
+        </span>
       </div>
+
       <p>
-        {leave?.start_date || 'Start date'} to {leave?.end_date || 'End date'}
+        {leave.start_date} to {leave.end_date}
       </p>
-      <p>{leave?.reason || 'No reason provided'}</p>
-      {status === 'PENDING' && onApprove && onReject && (
+      <p>{leave.reason}</p>
+
+      {onUpdate && leave.status === "PENDING" && (
         <div className="button-row">
-          <button onClick={() => onApprove(leave?.id)}>Approve</button>
-          <button className="danger-button" onClick={() => onReject(leave?.id)}>
+          <button type="button" onClick={() => onUpdate(leave.id, "APPROVED")}>
+            Approve
+          </button>
+          <button
+            type="button"
+            className="danger-button"
+            onClick={() => onUpdate(leave.id, "REJECTED")}
+          >
             Reject
           </button>
         </div>
